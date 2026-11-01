@@ -1,0 +1,7 @@
+import {config,AppError} from './server';
+export function modelInfo(){const c=config(),custom=c.MODEL_PROVIDER==='compatible';return {provider:custom?'兼容模型服务':'DeepSeek',name:(custom?c.MODEL_NAME:c.DEEPSEEK_MODEL)||'deepseek-flash',configured:!!(custom?c.MODEL_API_KEY:c.DEEPSEEK_API_KEY)}}
+export async function modelRequest(messages:{role:string;content:string}[]){const c=config(),custom=c.MODEL_PROVIDER==='compatible',base=custom?c.MODEL_BASE_URL:'https://api.deepseek.com',key=custom?c.MODEL_API_KEY:c.DEEPSEEK_API_KEY;const info=modelInfo();if(!key||!base)throw new AppError('模型服务尚未配置。',503);let url:URL;try{url=new URL(base.replace(/\/$/,'')+'/chat/completions');if(url.protocol!=='https:')throw Error()}catch{throw new AppError('管理员配置的模型服务地址无效，必须使用 HTTPS。',503)}
+ let r:Response;try{r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+key},body:JSON.stringify({model:info.name,messages,response_format:{type:'json_object'},max_tokens:6500,temperature:0.3,...(!custom?{thinking:{type:'disabled'}}:{})}),signal:AbortSignal.timeout(110000)})}catch{throw new AppError('模型连接超时，现有草稿已保留。',504)}
+ if(!r.ok)throw new AppError(r.status===401?'模型密钥无效，请联系管理员。':r.status===402?'模型余额不足，请联系管理员。':r.status===429?'模型服务请求繁忙，请稍后重试。':'模型服务暂不可用或不支持当前 JSON 输出参数，请联系管理员。',502);
+ const d=await r.json() as any,choice=d.choices?.[0];if(choice?.finish_reason==='length')throw new AppError('模型输出被截断，未覆盖现有草稿。请减少知识点后重试。',502);try{return JSON.parse(choice?.message?.content||'')}catch{throw new AppError('模型没有返回有效 JSON，现有草稿已保留。',502)}
+}

@@ -1,0 +1,4 @@
+import {test} from 'node:test';import assert from 'node:assert/strict';import {allowedRequestOrigin} from '../lib/request-origin.ts';
+const base='https://www.zhike-lesson-platform.cn',alias='https://zhike-lesson-platform.vercel.app';const request=origin=>new Request(alias+'/api/kg/login',{headers:origin?{Origin:origin}:{}});
+test('canonical website and explicitly approved Vercel alias both work',()=>{assert.equal(allowedRequestOrigin(request(base),base,alias),true);assert.equal(allowedRequestOrigin(request(alias),base,alias),true)});
+test('unapproved origins and lookalike domains stay blocked',()=>{for(const origin of ['https://untrusted.example',base+'.evil.example',base+'/path','null',undefined])assert.equal(allowedRequestOrigin(request(origin),base,alias),false);assert.equal(allowedRequestOrigin(request(alias),base),false)});

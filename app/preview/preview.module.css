@@ -1,0 +1,991 @@
+/* ======================================================================
+   /preview · 液态玻璃（Liquid Glass）预览专用样式
+   ----------------------------------------------------------------------
+   本文件只作用于 app/preview/page.tsx，通过 CSS Module 隔离，
+   不改动 app/globals.css，也不影响任何正式页面。
+   ====================================================================== */
+
+.page {
+  --g-bg: #eff5f4;
+  --g-bg-a: #fafcfb;
+  --g-bg-b: #e9f1f0;
+  --g-bg-c: #f3f5f8;
+  --g-line: #d7e3e1;
+  --g-ink: #12211f;
+  --g-muted: #5a6b68;
+  --g-accent: #096b6a;
+  --g-accent-hover: #075a59;
+
+  position: relative;
+  min-height: 100vh;
+  padding: 0 0 120px;
+  color: var(--g-ink);
+  font-family: var(--font-sans);
+  background:
+    radial-gradient(880px 520px at 6% -10%, rgba(11, 124, 123, 0.15), transparent 60%),
+    radial-gradient(720px 460px at 102% 4%, rgba(120, 170, 220, 0.16), transparent 62%),
+    radial-gradient(860px 600px at 48% 114%, rgba(150, 200, 180, 0.14), transparent 64%),
+    linear-gradient(150deg, #fafcfb 0%, #eff5f4 40%, #e9f1f0 72%, #f3f5f8 100%);
+  background-attachment: fixed;
+  overflow-x: hidden;
+}
+
+/* 背景中的彩色“内容”，让玻璃的折射与模糊有东西可折射。
+   两个必要条件：
+   1) 色彩必须足够饱和，否则玻璃再准，也只是模糊一片白；
+   2) 必须有可辨认的结构（细网格 + 色块边界），折射扭曲才会被眼睛读出来。 */
+.page::before {
+  content: '';
+  position: fixed;
+  inset: -10% -10%;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    /* 可辨认的结构：细网格，折射时会被明显拉弯 */
+    repeating-linear-gradient(
+        0deg,
+        rgba(9, 107, 106, 0.16) 0 1px,
+        transparent 1px 44px
+      ),
+    repeating-linear-gradient(
+        90deg,
+        rgba(9, 107, 106, 0.16) 0 1px,
+        transparent 1px 44px
+      ),
+    /* 彩色色源：折射时的取色来源 */
+    radial-gradient(460px 300px at 10% 12%, rgba(0, 178, 170, 0.95), transparent 62%),
+    radial-gradient(400px 280px at 80% 6%, rgba(96, 122, 245, 0.92), transparent 62%),
+    radial-gradient(520px 320px at 74% 44%, rgba(46, 202, 150, 0.9), transparent 62%),
+    radial-gradient(380px 280px at 18% 70%, rgba(245, 140, 85, 0.88), transparent 62%),
+    radial-gradient(440px 300px at 95% 84%, rgba(64, 176, 238, 0.9), transparent 62%),
+    radial-gradient(340px 240px at 46% 94%, rgba(186, 112, 238, 0.8), transparent 62%);
+  filter: blur(26px) saturate(1.35);
+  opacity: 0.92;
+}
+
+.page > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* ---------- 页头 ---------- */
+.head {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 72px 32px 44px;
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  color: var(--g-muted);
+  text-transform: uppercase;
+  margin-bottom: 18px;
+}
+
+.head h1 {
+  font-family: var(--font-serif);
+  font-size: clamp(38px, 5vw, 62px);
+  font-weight: 600;
+  line-height: 1.06;
+  letter-spacing: -0.01em;
+  margin: 0 0 18px;
+}
+
+.head p {
+  max-width: 62ch;
+  font-size: 15px;
+  line-height: 1.95;
+  color: var(--g-muted);
+  margin: 0;
+}
+
+.head strong {
+  color: var(--g-ink);
+  font-weight: 600;
+}
+
+/* ---------- 顶部工具条 ---------- */
+.toolbar {
+  position: sticky;
+  top: 16px;
+  z-index: 40;
+  max-width: 1240px;
+  margin: 0 auto 40px;
+  padding: 0 32px;
+  display: flex;
+  justify-content: center;
+}
+
+.toolbarInner {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px;
+  border-radius: 999px;
+}
+
+.toggle {
+  border: 0;
+  border-radius: 999px;
+  padding: 9px 18px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--g-muted);
+  background: transparent;
+  transition: background 0.24s ease, color 0.24s ease, box-shadow 0.24s ease;
+  white-space: nowrap;
+}
+
+.toggle:hover {
+  color: var(--g-ink);
+}
+
+.toggleOn {
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--g-accent);
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(20, 60, 60, 0.1);
+}
+
+.toolbarHint {
+  margin-left: 10px;
+  font-size: 11.5px;
+  color: var(--g-muted);
+  white-space: nowrap;
+}
+
+/* ---------- 通用区块 ---------- */
+.section {
+  max-width: 1240px;
+  margin: 0 auto 72px;
+  padding: 0 32px;
+}
+
+.sectionHead {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  margin-bottom: 8px;
+}
+
+.sectionHead h2 {
+  font-family: var(--font-serif);
+  font-size: 24px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.sectionNum {
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  color: var(--g-accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.sectionDesc {
+  max-width: 70ch;
+  font-size: 13.5px;
+  line-height: 1.9;
+  color: var(--g-muted);
+  margin: 0 0 28px;
+}
+
+.codeNote {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  background: rgba(9, 107, 106, 0.08);
+  color: var(--g-accent);
+  padding: 1px 7px;
+  border-radius: 5px;
+}
+
+/* ======================================================================
+   核心：液态玻璃
+   ====================================================================== */
+
+.glass {
+  position: relative;
+  z-index: 0;
+  border-radius: 22px;
+  background: linear-gradient(
+    140deg,
+    rgba(255, 255, 255, 0.5) 0%,
+    rgba(255, 255, 255, 0.2) 42%,
+    rgba(255, 255, 255, 0.12) 100%
+  );
+  -webkit-backdrop-filter: blur(22px) saturate(190%);
+  backdrop-filter: blur(22px) saturate(190%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.35),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.4),
+    0 18px 44px rgba(20, 60, 60, 0.13),
+    0 3px 10px rgba(20, 60, 60, 0.06);
+  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* 边缘折射：把玻璃外沿的 1.5px 反相，模拟光在棱边被折射后的高光。
+   这是液态玻璃最关键的视觉线索——玻璃边缘会把背后的颜色“翻”过来。 */
+.glass::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 1;
+  padding: 2px;
+  -webkit-backdrop-filter: invert(1) blur(3px) saturate(180%) brightness(1.1);
+  backdrop-filter: invert(1) blur(3px) saturate(180%) brightness(1.1);
+  -webkit-mask:
+    linear-gradient(#000, #000) content-box,
+    linear-gradient(#000, #000);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000, #000) content-box,
+    linear-gradient(#000, #000);
+  mask-composite: exclude;
+  opacity: 0.9;
+}
+
+/* 顶部高光扫过 */
+.glass::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 2;
+  background: linear-gradient(
+    116deg,
+    transparent 28%,
+    rgba(255, 255, 255, 0.72) 44%,
+    rgba(255, 255, 255, 0.22) 52%,
+    transparent 66%
+  );
+  background-size: 260% 100%;
+  background-position: 160% 0;
+  opacity: 0;
+  transition: opacity 0.5s ease;
+  mix-blend-mode: screen;
+}
+
+.glass:hover {
+  transform: translateY(-3px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.4),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.5),
+    0 26px 60px rgba(20, 60, 60, 0.17),
+    0 4px 12px rgba(20, 60, 60, 0.07);
+}
+
+.glass:hover::after {
+  opacity: 1;
+  animation: sheen 1.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes sheen {
+  from {
+    background-position: 160% 0;
+  }
+  to {
+    background-position: -60% 0;
+  }
+}
+
+/* 指针跟随的镜面点：已按需求移除（强制删除鼠标跟随高光效果） */
+.spec {
+  display: none;
+}
+
+/* SVG 位移折射（液态玻璃的关键：真实扭曲背后的内容） */
+.liquid .glass {
+  -webkit-backdrop-filter: blur(1px) saturate(190%);
+  backdrop-filter: blur(1px) saturate(190%);
+}
+
+/* 仅在支持 backdrop-filter: url() 的浏览器（Chrome/Edge）中启用真实位移折射；
+   其他浏览器自动回落到上面的普通模糊，不会失效。 */
+@supports (backdrop-filter: url('#x')) {
+  .liquid .glass {
+    -webkit-backdrop-filter: url('#liquidGlass') blur(1px) saturate(190%);
+    backdrop-filter: url('#liquidGlass') blur(1px) saturate(190%);
+  }
+  .liquid .glass::before {
+    -webkit-backdrop-filter: invert(1) blur(3px) saturate(180%) brightness(1.1);
+    backdrop-filter: invert(1) blur(3px) saturate(180%) brightness(1.1);
+  }
+}
+
+/* ---------- 玻璃层级：四种配方对照 ---------- */
+.tiers {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px;
+}
+
+@media (max-width: 1024px) {
+  .tiers {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 620px) {
+  .tiers {
+    grid-template-columns: 1fr;
+  }
+}
+
+.tier {
+  border-radius: 20px;
+  padding: 22px 22px 24px;
+  min-height: 218px;
+  display: flex;
+  flex-direction: column;
+}
+
+.tierName {
+  font-family: var(--font-serif);
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.tierUse {
+  font-size: 11.5px;
+  letter-spacing: 0.06em;
+  color: var(--g-muted);
+  margin-bottom: 16px;
+}
+
+.tierBody {
+  font-size: 13px;
+  line-height: 1.85;
+  color: var(--g-ink);
+  opacity: 0.85;
+  margin-top: auto;
+}
+
+.tierSpec {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.5);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10.5px;
+  line-height: 1.75;
+  color: var(--g-muted);
+}
+
+/* 四种配方 */
+.tierMist {
+  background: linear-gradient(140deg, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0.52));
+  -webkit-backdrop-filter: blur(30px) saturate(140%);
+  backdrop-filter: blur(30px) saturate(140%);
+}
+
+.tierSoft {
+  background: linear-gradient(140deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.2));
+  -webkit-backdrop-filter: blur(22px) saturate(190%);
+  backdrop-filter: blur(22px) saturate(190%);
+}
+
+.tierClear {
+  background: linear-gradient(140deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0.06));
+  -webkit-backdrop-filter: blur(12px) saturate(220%);
+  backdrop-filter: blur(12px) saturate(220%);
+}
+
+.tierThick {
+  background: linear-gradient(140deg, rgba(255, 255, 255, 0.86), rgba(255, 255, 255, 0.64));
+  -webkit-backdrop-filter: blur(40px) saturate(160%) brightness(1.04);
+  backdrop-filter: blur(40px) saturate(160%) brightness(1.04);
+}
+
+/* ---------- 大样本区 ---------- */
+.showcase {
+  border-radius: 26px;
+  padding: 46px 48px 48px;
+  overflow: hidden;
+}
+
+/* 文字与 Bento 上下排列：Bento 需要完整宽度才能撑开 3 列网格 */
+.showcaseGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 34px;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .showcase {
+    padding: 32px 26px 34px;
+  }
+}
+
+.showcase h3 {
+  font-family: var(--font-serif);
+  font-size: clamp(26px, 3.4vw, 40px);
+  font-weight: 600;
+  line-height: 1.14;
+  margin: 0 0 18px;
+  max-width: 20ch;
+}
+
+.showcase p {
+  font-size: 14px;
+  line-height: 2;
+  color: var(--g-muted);
+  margin: 0 0 26px;
+  max-width: 46ch;
+}
+
+.showcaseStats {
+  display: flex;
+  gap: 34px;
+  flex-wrap: wrap;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.stat b {
+  font-family: var(--font-serif);
+  font-size: 27px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.stat span {
+  font-size: 11.5px;
+  color: var(--g-muted);
+}
+
+/* ---------- 组件样本 ---------- */
+.components {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+}
+
+@media (max-width: 1024px) {
+  .components {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 620px) {
+  .components {
+    grid-template-columns: 1fr;
+  }
+}
+
+.compCard {
+  border-radius: 20px;
+  padding: 24px;
+}
+
+.compTitle {
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  color: var(--g-muted);
+  text-transform: uppercase;
+  margin-bottom: 18px;
+}
+
+.compRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+/* 玻璃按钮 */
+.btn {
+  border: 0;
+  border-radius: 999px;
+  padding: 11px 22px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--g-ink);
+  background: rgba(255, 255, 255, 0.5);
+  -webkit-backdrop-filter: blur(18px) saturate(180%);
+  backdrop-filter: blur(18px) saturate(180%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.55),
+    0 6px 18px rgba(20, 60, 60, 0.1);
+  transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.22s ease;
+}
+
+.btn:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.7),
+    0 12px 28px rgba(20, 60, 60, 0.16);
+}
+
+.btn:active {
+  transform: translateY(0) scale(0.985);
+}
+
+.btnPrimary {
+  color: #fff;
+  background: linear-gradient(140deg, #0a7a78, #096b6a 52%, #075a59);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.32),
+    0 8px 22px rgba(9, 107, 106, 0.3);
+}
+
+.btnPrimary:hover {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    0 14px 32px rgba(9, 107, 106, 0.38);
+}
+
+/* 玻璃胶囊导航 */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 5px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.42);
+  -webkit-backdrop-filter: blur(24px) saturate(190%);
+  backdrop-filter: blur(24px) saturate(190%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.45),
+    0 10px 28px rgba(20, 60, 60, 0.12);
+}
+
+.pillItem {
+  border: 0;
+  border-radius: 999px;
+  padding: 8px 16px;
+  font-size: 12.5px;
+  color: var(--g-muted);
+  background: transparent;
+  transition: background 0.26s ease, color 0.26s ease, box-shadow 0.26s ease;
+}
+
+.pillItem:hover {
+  color: var(--g-ink);
+}
+
+.pillItemOn {
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--g-accent);
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(20, 60, 60, 0.11);
+}
+
+/* 玻璃输入框 */
+.field {
+  width: 100%;
+  border: 0;
+  border-radius: 14px;
+  padding: 12px 15px;
+  font: inherit;
+  font-size: 13.5px;
+  color: var(--g-ink);
+  background: rgba(255, 255, 255, 0.5);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  backdrop-filter: blur(16px) saturate(160%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.55);
+  outline: none;
+  transition: box-shadow 0.22s ease, background 0.22s ease;
+}
+
+.field::placeholder {
+  color: rgba(90, 107, 104, 0.6);
+}
+
+.field:focus {
+  background: rgba(255, 255, 255, 0.7);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.8),
+    0 0 0 3px rgba(9, 107, 106, 0.16);
+}
+
+/* 标签 / 徽章 */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 13px;
+  border-radius: 999px;
+  font-size: 12px;
+  color: var(--g-accent);
+  background: rgba(255, 255, 255, 0.46);
+  -webkit-backdrop-filter: blur(14px) saturate(170%);
+  backdrop-filter: blur(14px) saturate(170%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.88),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+}
+
+.chipQuiet {
+  color: var(--g-muted);
+}
+
+/* 开关 */
+.switch {
+  width: 46px;
+  height: 27px;
+  border-radius: 999px;
+  border: 0;
+  padding: 0;
+  position: relative;
+  background: rgba(9, 107, 106, 0.85);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.32),
+    0 4px 12px rgba(9, 107, 106, 0.28);
+  transition: background 0.26s ease;
+}
+
+.switch::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 22px;
+  width: 21px;
+  height: 21px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 5px rgba(20, 60, 60, 0.28);
+  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.switchOff {
+  background: rgba(255, 255, 255, 0.5);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.7);
+}
+
+.switchOff::after {
+  transform: translateX(-19px);
+  background: var(--g-muted);
+}
+
+/* ---------- Bento 工作台模拟 ---------- */
+.bentoWrap {
+  border-radius: 26px;
+  padding: 18px;
+}
+
+.bento {
+  display: grid;
+  grid-template-columns: 1.35fr 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 10px;
+  height: 420px;
+}
+
+@media (max-width: 900px) {
+  .bento {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto;
+    height: auto;
+  }
+}
+
+.bentoCell {
+  position: relative;
+  border-radius: 18px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.42);
+  -webkit-backdrop-filter: blur(26px) saturate(190%);
+  backdrop-filter: blur(26px) saturate(190%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.42),
+    0 12px 30px rgba(20, 60, 60, 0.1);
+}
+
+.bentoHero {
+  grid-row: span 2;
+  padding: 28px;
+}
+
+.bentoIdx {
+  position: absolute;
+  top: 18px;
+  left: 20px;
+  font-size: 9.5px;
+  letter-spacing: 0.2em;
+  color: rgba(18, 33, 31, 0.42);
+  font-variant-numeric: tabular-nums;
+}
+
+.bentoTitle {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  line-height: 1.15;
+}
+
+.bentoHero .bentoTitle {
+  font-size: 40px;
+}
+
+.bentoTile .bentoTitle {
+  font-size: 19px;
+}
+
+.bentoHint {
+  font-size: 11.5px;
+  line-height: 1.75;
+  color: var(--g-muted);
+  margin-top: 6px;
+}
+
+.bentoFoot {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.55);
+}
+
+.bentoLead {
+  font-size: 14px;
+  font-weight: 500;
+  margin: 0 0 14px;
+}
+
+/* ======================================================================
+   主按钮配色方案对照
+   ====================================================================== */
+
+.colorGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 18px;
+}
+
+.colorCard {
+  border-radius: 20px;
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.colorName {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.colorName b {
+  font-family: var(--font-serif);
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.colorName span {
+  font-size: 10.5px;
+  color: var(--g-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.colorNote {
+  font-size: 12.5px;
+  line-height: 1.8;
+  color: var(--g-muted);
+  margin: 0;
+}
+
+.colorSwatches {
+  display: flex;
+  gap: 6px;
+}
+
+.colorSwatches i {
+  flex: 1;
+  height: 34px;
+  border-radius: 8px;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.07);
+}
+
+.colorButtons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: auto;
+}
+
+.colorMeta {
+  border-top: 1px solid rgba(255, 255, 255, 0.5);
+  padding-top: 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+  line-height: 1.8;
+  color: var(--g-muted);
+  word-break: break-all;
+}
+
+.colorMeta em {
+  font-style: normal;
+  opacity: 0.75;
+}
+
+/* 每个方案独立的按钮配色 */
+.btnJade {
+  color: #12211f;
+  background: linear-gradient(140deg, #7fe0c0, #4fc9a0 52%, #2fb183);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.6),
+    0 8px 22px rgba(31, 143, 105, 0.28);
+}
+
+.btnJade:hover {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.72),
+    0 14px 32px rgba(31, 143, 105, 0.36);
+}
+
+.btnMoss {
+  color: #12211f;
+  background: linear-gradient(140deg, #b6e58a, #93d160 52%, #6fb93c);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.6),
+    0 8px 22px rgba(111, 185, 60, 0.28);
+}
+
+.btnMoss:hover {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.72),
+    0 14px 32px rgba(111, 185, 60, 0.36);
+}
+
+.btnFern {
+  color: #fff;
+  background: linear-gradient(140deg, #307e47, #206f3c 52%, #145c31);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    0 8px 22px rgba(32, 111, 60, 0.28);
+}
+
+.btnFern:hover {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.38),
+    0 14px 32px rgba(32, 111, 60, 0.36);
+}
+
+.btnShift {
+  color: #fff;
+  background: linear-gradient(140deg, #10786f, #0e7350 52%, #0a5a38);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    0 8px 22px rgba(14, 115, 80, 0.3);
+}
+
+.btnShift:hover {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.36),
+    0 14px 32px rgba(14, 115, 80, 0.38);
+}
+
+.btnCurrent {
+  color: #fff;
+  background: linear-gradient(140deg, #0a7a78, #096b6a 52%, #075a59);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    0 8px 22px rgba(9, 107, 106, 0.28);
+}
+
+.btnCurrent:hover {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.36),
+    0 14px 32px rgba(9, 107, 106, 0.36);
+}
+
+/* ---------- 说明脚注 ---------- */
+.footnote {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 0 32px;
+}
+
+.footnoteInner {
+  border-radius: 20px;
+  padding: 26px 30px;
+  font-size: 13px;
+  line-height: 2;
+  color: var(--g-muted);
+}
+
+.footnoteInner h3 {
+  font-family: var(--font-serif);
+  font-size: 17px;
+  color: var(--g-ink);
+  margin: 0 0 10px;
+}
+
+.footnoteInner ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.footnoteInner li {
+  margin-bottom: 6px;
+}
+
+.footnoteInner code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11.5px;
+  background: rgba(9, 107, 106, 0.09);
+  color: var(--g-accent);
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 22px;
+  font-size: 13px;
+  color: var(--g-accent);
+  text-decoration: none;
+  padding: 9px 16px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.44);
+  -webkit-backdrop-filter: blur(16px) saturate(170%);
+  backdrop-filter: blur(16px) saturate(170%);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.55);
+  transition: transform 0.22s ease;
+}
+
+.backLink:hover {
+  transform: translateY(-2px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glass,
+  .glass::after,
+  .btn,
+  .spec,
+  .switch::after {
+    transition: none !important;
+    animation: none !important;
+  }
+  .glass:hover {
+    transform: none;
+  }
+}

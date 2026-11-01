@@ -1,0 +1,37 @@
+export const maxDuration=300;
+import { body,json,failure,session,config,quota,AppError } from '@/lib/server';
+import { searchGraph } from '@/lib/graph';
+import { briefSchema,lessonSchema,templateLesson,checkLesson,withFixedTitle,type Knowledge } from '@/lib/lesson';
+import {modelRequest,modelInfo} from '@/lib/model';
+import { z } from 'zod';
+import { selectionSchema,validateSelections,lessonPrompt,groundedBlocks,checkEvidenceBoundary,PROMPT_VERSION } from '@/lib/evidence';
+const selection=z.array(selectionSchema).min(1).max(25);
+export async function POST(req:Request){try{const b=await body(req);const parsed=briefSchema.safeParse(b.brief),sel=selection.safeParse(b.knowledge);if(!parsed.success||!sel.success)throw new AppError('教学需求或知识清单格式有误。');const brief=parsed.data;if(!modelInfo().configured)throw new AppError('模型服务尚未配置，可先使用模板生成。',503);const s=(await session())!;
+ const verified=await searchGraph(s.token,[...new Set(sel.data.map(x=>x.name))],brief.standard);
+ const checked=validateSelections(sel.data,verified,brief);
+ if(checked.problems.length)throw new AppError(checked.problems.join(' '),422);
+ const knowledge=checked.knowledge;
+ const revision=typeof b.revision==='string'?b.revision.slice(0,1000):'';
+ const previous=b.previous?lessonSchema.safeParse(b.previous):null;
+ if(b.previous&&!previous?.success)throw new AppError('待修订教案格式无效。');
+ const example={title:brief.topic,goals:[{id:'g1',domain:'认知领域',text:'可观察的学习成果',knowledgeIds:['输入中的知识id']},{id:'g2',domain:'技能领域',text:'可观察的交际产出',knowledgeIds:['输入中的知识id']},{id:'g3',domain:'情感领域',text:'学生愿意做的具体行为',knowledgeIds:['输入中的知识id']}],difficulties:[{text:'本课学生最可能卡住的具体问题'}],activities:[{id:'a1',title:'环节标题',minutes:5,goalIds:['g1'],knowledgeIds:['输入中的知识id'],teacher:'具体教师指令与示范语言',students:'具体学生行动',grouping:'分组方式',output:'可观察成果',assessment:'评价方法'}],materials:[{title:'角色卡A',content:'可直接发给学生的完整信息，与B卡不同'}],exercises:[{question:'完整题目',answer:'参考答案或具体评分标准',goalIds:['g1'],knowledgeIds:['输入中的知识id']}],board:'具体板书内容',homework:'基础与拓展任务',notes:'待教师核验事项'};
+ const prompt=lessonPrompt(brief,knowledge,example);
+ const messages:{role:string;content:string}[]=[{role:'system',content:prompt},{role:'user',content:JSON.stringify({brief:{...brief,terms:knowledge.map(k=>k.name).join('、')},knowledge:groundedBlocks(knowledge),previous:previous?.success?previous.data:null,revision})}];
+ let candidate:ReturnType<typeof lessonSchema.parse>|null=null;
+ let warnings:string[]=[];
+ const finish=()=>{if(!candidate)throw new AppError('模型未返回完整教案，请重试。现有草稿已保留。',502);const lesson={...candidate,notes:candidate.notes+(warnings.length?'\n\n【待审核问题】\n'+warnings.map(x=>'• '+x).join('\n'):'')};return json({lesson,knowledge,source:'model',createdAt:new Date().toISOString(),promptVersion:PROMPT_VERSION,model:modelInfo().name,reviewed:false,validationWarnings:warnings})};
+ for(let attempt=0;attempt<2;attempt++){
+ try{
+ await quota(s.id);
+ const raw=await modelRequest(messages),l=lessonSchema.safeParse(raw);
+ if(!l.success)throw new AppError('模型输出结构不完整。',502);
+ // 标题以教师输入的课程主题为准：模型加的任何后缀都在这里被覆盖掉
+ candidate=withFixedTitle(l.data,brief.topic);
+ warnings=[...new Set([...checkLesson(candidate,brief,knowledge).filter(x=>x.severity==='error').map(x=>x.text),...checkEvidenceBoundary(candidate,knowledge)])];
+ if(!warnings.length)return finish();
+ if(attempt===0){messages.push({role:'assistant',content:JSON.stringify(candidate)},{role:'user',content:'请修订完整教案 JSON，优先修复以下问题。不得新增或伪造图谱知识，knowledgeIds 必须来自证据包，goalIds 必须来自本教案目标。goals 每项必须带 domain 且只能是「认知领域」「技能领域」「情感领域」，三个领域都要有目标；必须保留并输出 difficulties。没有语法证据时，仅安排原句理解、情境选择和交流任务，不总结语法规则。活动时间合计必须等于 '+brief.minutes+' 分钟。lesson.title 必须原封不动等于「课程主题」，不得添加课型、时长、括号等任何后缀。待修复：'+warnings.join(' ')});continue}
+ return finish();
+ }catch(e){if(candidate){warnings.push('自动修订未完成，已保留上一次完整生成结果。请按下方问题人工调整，或稍后使用“修订”。');return finish()}throw e}
+ }
+ return finish();
+ }catch(e){return failure(e)}}

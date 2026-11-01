@@ -1,0 +1,1 @@
+export default function ResetPassword(){return <main className="reset-page"><section className="workspace-card lg-surface"><div className="card-heading"><h1>联系管理员重设密码</h1></div><div className="form-content"><p>当前使用管理员分配的账号，不需要邮箱验证。忘记密码时，请联系管理员在账号管理窗口重设；重设后旧登录会话会退出。</p><a className="external-link" href="/">返回智课登录</a></div></section></main>}
