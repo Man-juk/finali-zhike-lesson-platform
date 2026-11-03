@@ -6,7 +6,7 @@ import { buildTeacherDocx, buildStudentDocx } from './exporter/docbuild.js';
 
 export type ApiKnowledge = {
   id: string;
-  kind: 'Word' | 'Grammar' | 'Character';
+  kind: 'Word' | 'Grammar' | 'Character' | 'Idiom';
   name: string;
   pinyin?: string;
   role: '核心' | '复习' | '拓展' | '排除';

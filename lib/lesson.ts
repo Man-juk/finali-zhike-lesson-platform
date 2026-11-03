@@ -1,4 +1,6 @@
 import { z } from 'zod';
+export const culturalTopicSelectionSchema=z.object({id:z.string().min(1).max(200),kind:z.enum(['CulturalStage','Cultural','CulturalLevel1','CulturalLevel2']),name:z.string().min(1).max(300)});
+import type {LexicalFeature} from './lexical';
 const text = z.string().min(1).max(3000);
 /**
  * 展示用的教案不得留占位语（如「（待补充）」）。
@@ -24,11 +26,20 @@ export const placeholderIssues=(l:Lesson):string[]=>{
 export const courseTypes=['综合课','读写课','听力课'] as const;
 export type CourseType=typeof courseTypes[number];
 /**
- * 教学对象：国籍 / 年龄 / 水平 三个子字段。
+ * 教学对象：国籍、年龄、汉语等级、母语与文化背景。
  * 界面上合并成一个输入框（旧草稿里 audience 曾经是一个字符串）。
  */
-export const audienceSchema=z.object({nationality:z.string().max(60).default(''),age:z.string().max(20).default(''),level:z.string().max(10).default('3')});
+export const audienceSchema=z.object({nationality:z.string().max(60).default(''),age:z.string().max(20).default(''),level:z.string().max(10).default('3'),motherTongue:z.string().max(100).default(''),culturalBackground:z.enum(['','单一国家','多国混合']).default('')});
 export type Audience=z.infer<typeof audienceSchema>;
+export const knowledgeColumns=[{key:'characters',label:'汉字',example:'旅、游、比'},{key:'vocabulary',label:'词汇',example:'便宜、方便、建议'},{key:'grammar',label:'语法',example:'比字句、把字句'},{key:'culture',label:'文化',example:'节日习俗、饮食礼仪'},{key:'other',label:'其他',example:'跨文化交际任务、学习策略'}] as const;
+export const knowledgeGroupsSchema=z.object({characters:z.string().max(1200).default(''),vocabulary:z.string().max(1200).default(''),grammar:z.string().max(1200).default(''),culture:z.string().max(1200).default(''),other:z.string().max(1200).default('')});
+export type KnowledgeGroups=z.infer<typeof knowledgeGroupsSchema>;
+export function getKnowledgeGroups(brief:{terms:string;knowledgeGroups?:KnowledgeGroups}):KnowledgeGroups{
+ return brief.knowledgeGroups??{characters:'',vocabulary:brief.terms||'',grammar:'',culture:'',other:''};
+}
+export function graphTermsFromGroups(groups:KnowledgeGroups):string{
+ return [...new Set([groups.characters,groups.vocabulary,groups.grammar].flatMap(x=>x.split(/[、，,；;\n]+/).map(t=>t.trim()).filter(Boolean)))].join('、');
+}
 /**
  * 旧草稿迁移：
  *   · audience 曾经是字符串（如「来华留学生」）；
@@ -46,10 +57,11 @@ function migrateBrief(raw:unknown):unknown{
  if(!a.level&&legacyLevel)a.level=legacyLevel;
  // 完全没有 audience 时留 undefined，交给 schema 的 .default()，保持与旧默认值一致。
  r.audience=(hasAud||legacyLevel)?a:undefined;
+ if(r.knowledgeGroups&&typeof r.knowledgeGroups==='object'){const groups=knowledgeGroupsSchema.safeParse(r.knowledgeGroups);if(groups.success)r.terms=graphTermsFromGroups(groups.data);}
  delete r.level;
  return r;
 }
-export const briefSchema = z.preprocess(migrateBrief,z.object({topic:text.max(120), standard:z.enum(['InternationalLevel','HSKLevel','HSK30Level']).default('InternationalLevel'),courseType:z.enum(courseTypes).default('综合课'),minutes:z.number().int().min(15).max(180),students:z.number().int().min(1).max(100),mode:z.enum(['线下课堂','线上课堂']).default('线下课堂'),audience:z.preprocess(v=>typeof v==='string'?{nationality:v}:v,audienceSchema).default({nationality:'来华留学生',age:'',level:'3'}),referenceMaterial:z.string().max(200).default('《HSK标准教程》3'),outcome:text.max(600),passage:z.string().max(8000),terms:z.string().max(1200)}));
+export const briefSchema = z.preprocess(migrateBrief,z.object({topic:text.max(120), standard:z.enum(['InternationalLevel','HSKLevel','HSK30Level']).default('InternationalLevel'),courseType:z.enum(courseTypes).default('综合课'),minutes:z.number().int().min(15).max(180),students:z.number().int().min(1).max(100),mode:z.enum(['线下课堂','线上课堂']).default('线下课堂'),teachingLocation:z.enum(['','中国','海外']).default(''),audience:z.preprocess(v=>typeof v==='string'?{nationality:v}:v,audienceSchema).default({nationality:'来华留学生',age:'',level:'3',motherTongue:'',culturalBackground:''}),referenceMaterial:z.string().max(200).default('《HSK标准教程》3'),outcome:text.max(600),passage:z.string().max(8000),terms:z.string().max(1200),knowledgeGroups:knowledgeGroupsSchema.optional(),culturalTopics:z.array(culturalTopicSelectionSchema).max(10).optional()}));
 export type Brief=z.infer<typeof briefSchema>;
 /**
  * 把旧草稿里的 brief 补全成完整结构。
@@ -76,12 +88,15 @@ export function withBriefDefaults(brief:Brief):Brief{
   standard:merged.standard??initialBrief.standard,
   courseType:merged.courseType??initialBrief.courseType,
   mode:merged.mode??initialBrief.mode,
+  teachingLocation:merged.teachingLocation??'',
   minutes:merged.minutes??initialBrief.minutes,
   students:merged.students??initialBrief.students,
   audience:{
    nationality:merged.audience?.nationality??initialBrief.audience.nationality,
    age:merged.audience?.age??initialBrief.audience.age,
    level:merged.audience?.level??initialBrief.audience.level,
+   motherTongue:merged.audience?.motherTongue??'',
+   culturalBackground:merged.audience?.culturalBackground??'',
   },
   referenceMaterial:merged.referenceMaterial??initialBrief.referenceMaterial,
   outcome:merged.outcome??'',
@@ -89,14 +104,14 @@ export function withBriefDefaults(brief:Brief):Brief{
   terms:merged.terms??'',
  };
 }
-export type Knowledge={id:string;kind:'Word'|'Grammar'|'Character';name:string;pinyin?:string;role:'核心'|'复习'|'拓展'|'排除';verified:boolean;detail:string;example:string;levels:string[];relations:{type:string;name:string;detail:string}[];query?:string;checkedAt?:string;rawDetail?:string;rawExample?:string;selectedMeaning?:string;selectedExamples?:string[];scopeConfirmed?:boolean;evidence?:{standard:string;parameters:{terms:string[]};queries:string[]};};
+export type Knowledge={id:string;kind:'Word'|'Grammar'|'Character'|'Idiom';name:string;pinyin?:string;idiomSource?:string;idiomAllusion?:string;idiomFeeling?:string;animationUrl?:string;strokeUrl?:string;grammarQuestions?:import('./grammar-data').GrammarQuestion[];selectedQuestionIds?:string[];grammarQuestionStatus?:'available'|'unavailable';lexicalFeatures?:LexicalFeature[];selectedFeatureIds?:string[];lexicalStatus?:'available'|'unavailable'|'truncated';role:'核心'|'复习'|'拓展'|'排除';verified:boolean;detail:string;example:string;levels:string[];relations:{type:string;name:string;detail:string}[];query?:string;checkedAt?:string;rawDetail?:string;rawExample?:string;characterTeachingMeaning?:string;selectedMeanings?:string[];selectedMeaning?:string;selectedExamples?:string[];scopeConfirmed?:boolean;evidence?:{standard:string;parameters:{terms:string[];text?:string};queries:string[]};};
 export const objectiveDomains=['认知领域','技能领域','情感领域'] as const;
 export type ObjectiveDomain=typeof objectiveDomains[number];
-export const goalSchema=z.object({id:text.max(30),domain:z.enum(objectiveDomains),text,knowledgeIds:z.array(z.string().max(160)).max(25)});
+export const goalSchema=z.object({id:text.max(30),domain:z.enum(objectiveDomains),text,knowledgeIds:z.array(z.string().max(160)).max(1000)});
 export type Goal=z.infer<typeof goalSchema>;
-export const activitySchema=z.object({id:text.max(30),title:text.max(100),minutes:z.number().int().min(1).max(180),goalIds:z.array(z.string().max(30)).max(10),knowledgeIds:z.array(z.string().max(160)).max(25),teacher:text,students:text,grouping:text.max(100),output:text,assessment:text});
+export const activitySchema=z.object({id:text.max(30),title:text.max(100),minutes:z.number().int().min(1).max(180),goalIds:z.array(z.string().max(30)).max(10),knowledgeIds:z.array(z.string().max(160)).max(1000),teacher:text,students:text,grouping:text.max(100),output:text,assessment:text});
 export const difficultySchema=z.object({text:text.max(500)});
-export const lessonSchema=z.object({title:text.max(150),goals:z.array(goalSchema).min(1).max(8),difficulties:z.array(difficultySchema).min(1).max(8),activities:z.array(activitySchema).min(2).max(12),materials:z.array(z.object({title:text.max(100),content:text})).max(12),exercises:z.array(z.object({question:text,answer:text,goalIds:z.array(z.string().max(30)).max(10),knowledgeIds:z.array(z.string().max(160)).max(25)})).min(1).max(12),board:text,homework:text,notes:z.string().max(3000)});
+export const lessonSchema=z.object({title:text.max(150),goals:z.array(goalSchema).min(1).max(8),difficulties:z.array(difficultySchema).min(1).max(8),activities:z.array(activitySchema).min(2).max(12),materials:z.array(z.object({title:text.max(100),content:text})).max(12),exercises:z.array(z.object({question:text,answer:text,goalIds:z.array(z.string().max(30)).max(10),knowledgeIds:z.array(z.string().max(160)).max(1000)})).min(1).max(12),board:text,homework:text,notes:z.string().max(3000)});
 export type Lesson=z.infer<typeof lessonSchema>;
 
 /**
@@ -112,10 +127,14 @@ export function withFixedTitle<T extends {title:string}>(lesson:T,topic:string):
  if(!topic.trim())return lesson;
  return {...lesson,title:topic};
 }
-export type Draft={brief:Brief;knowledge:Knowledge[];lesson:Lesson;source:'template'|'deepseek'|'model';createdAt:string;promptVersion?:string;model?:string;reviewed?:boolean;validationWarnings?:string[];messages?:{role:'user'|'assistant';content:string;at:string}[]};
-export const initialBrief:Brief={topic:'比较周末出游方案并提出建议',standard:'InternationalLevel',courseType:'综合课',minutes:45,students:20,mode:'线下课堂',audience:{nationality:'来华留学生',age:'20',level:'3'},referenceMaterial:'《HSK标准教程》3',outcome:'学生能比较两个出游方案，提出建议，并用至少两条理由说明小组的选择。',passage:'',terms:'便宜、方便、建议、比较、比'};
+export type Draft={culturalEvidence?:import('./cultural-topics').CulturalCandidate[];brief:Brief;knowledge:Knowledge[];lesson:Lesson;source:'template'|'deepseek'|'model';createdAt:string;promptVersion?:string;model?:string;reviewed?:boolean;validationWarnings?:string[];messages?:{role:'user'|'assistant';content:string;at:string}[]};
+export const initialBrief:Brief={topic:'比较周末出游方案并提出建议',standard:'InternationalLevel',courseType:'综合课',minutes:45,students:20,mode:'线下课堂',teachingLocation:'',audience:{nationality:'来华留学生',age:'20',level:'3',motherTongue:'',culturalBackground:''},referenceMaterial:'《HSK标准教程》3',outcome:'学生能比较两个出游方案，提出建议，并用至少两条理由说明小组的选择。',passage:'',terms:'便宜、方便、建议、比较、比'};
 export function splitTerms(s:string){return [...new Set(s.split(/[、，,；;\n]+/).map(s=>s.trim()).filter(Boolean))].slice(0,20)}
-export function manualKnowledge(brief:Brief):Knowledge[]{return splitTerms(brief.terms).map((name,i)=>({id:`manual-${i}`,kind:'Word',name,role:'核心',verified:false,detail:'教师指定，尚未通过知识图谱核验。',example:'',levels:[],relations:[]}))}
+export function manualKnowledge(brief:Brief):Knowledge[]{
+ const groups=brief.knowledgeGroups;
+ const entries=groups?([['characters','Character'],['vocabulary','Word'],['grammar','Grammar']] as const).flatMap(([key,kind])=>splitTerms(groups[key]).map(name=>({name,kind}))):splitTerms(brief.terms).map(name=>({name,kind:'Word' as const}));
+ return entries.map(({name,kind},i)=>({id:`manual-${i}`,kind,name,role:'核心',verified:false,detail:'教师指定，尚未通过知识图谱核验。',example:'',levels:[],relations:[]}));
+}
 export function templateLesson(b:Brief,k:Knowledge[]):Lesson{
  const ids=k.filter(x=>x.role==='核心').map(x=>x.id), names=k.filter(x=>x.role==='核心').map(x=>x.name).join('、')||'教师确认的目标表达';
  const weights=[5,8,10,15,7];let allocated=0;const times=weights.map((w,i)=>{const t=i===4?b.minutes-allocated:Math.max(1,Math.floor(b.minutes*w/45));allocated+=t;return t});

@@ -490,7 +490,7 @@ main{max-width:1440px;margin:auto;padding:14px 44px 0;position:relative}
 .audience-trigger.open>svg{transform:rotate(180deg)}
 .audience-panel{
   position:absolute;z-index:40;left:0;right:0;top:calc(100% + 8px);
-  padding:18px 18px 14px;border-radius:var(--r-nested);
+  padding:18px 18px 14px;border-radius:var(--r-nested);max-height:70vh;overflow-y:auto;
   background:var(--surface-solid);
   border:1px solid var(--glass-edge-dim);
   box-shadow:var(--glass-shadow-lift),inset 0 0.5px 0 var(--glass-edge);
@@ -2059,3 +2059,58 @@ main{max-width:1440px;margin:auto;padding:14px 44px 0;position:relative}
   .schedule-grid{grid-template-columns:56px repeat(7,minmax(120px,1fr))}
   .schedule-grid-wrap{overflow-x:auto}
 }
+
+.knowledge-fields{border:0;padding:0;margin:0;min-width:0}
+.knowledge-fields legend{font-size:13px;font-weight:500;margin-bottom:8px}
+.knowledge-fields-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:14px}
+.knowledge-fields-grid textarea{resize:vertical;min-height:96px}
+@media(max-width:1100px){.knowledge-fields-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){.knowledge-fields-grid{grid-template-columns:1fr}}
+
+.lexical-details{border-top:1px solid var(--glass-edge-dim);padding:10px 0}
+.lexical-details summary{cursor:pointer;font-size:13px;line-height:1.6}
+.lexical-details summary>span{float:right;color:var(--muted);font-size:11px}
+.lexical-option{display:flex;align-items:flex-start;gap:10px;padding:10px 0;font-size:13px}
+.lexical-option input{margin-top:4px;accent-color:var(--accent)}
+.lexical-option span{min-width:0;overflow-wrap:anywhere}
+.lexical-option small{display:block;color:var(--muted);margin-top:4px}
+.kb-syntax{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:0 0 10px;font-size:12px;color:var(--muted)}
+.kb-meaning-choices{list-style:none;margin:12px 0 0;padding:0!important}
+.kb-meaning-choices .kb-example-text{white-space:pre-wrap;overflow-wrap:anywhere}
+.kb-meaning-group{margin-top:16px;padding-top:12px;border-top:1px solid var(--glass-edge-dim)}
+.kb-meaning-group h5{font-size:14px;margin:0 0 8px;color:var(--accent-ink)}
+.kb-character-original{white-space:pre-wrap;overflow-wrap:anywhere;max-height:none}
+.kb-character-input{margin-top:16px}
+.grammar-question{margin-top:14px;padding:14px;border:1px solid var(--glass-edge-dim);border-radius:10px}
+.grammar-question>label{display:flex;gap:10px;align-items:center;font-size:13px;cursor:pointer}
+.grammar-question>label input{width:auto;accent-color:var(--accent)}
+.grammar-question-content p{font-size:13px;white-space:pre-wrap;overflow-wrap:anywhere;margin:8px 0}
+.grammar-question-content a{display:block;font-size:13px;margin:8px 0;color:var(--accent-ink);overflow-wrap:anywhere}
+.knowledge-fold.lg-surface{padding:0;overflow:hidden}
+.knowledge-fold>.knowledge-summary{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:18px 20px;list-style:none;cursor:pointer;color:var(--ink);font-size:14px}
+.knowledge-summary::-webkit-details-marker{display:none}
+.knowledge-summary-name,.knowledge-summary-state{display:flex;align-items:center;gap:10px;min-width:0}
+.knowledge-summary-name{flex-wrap:wrap}
+.knowledge-summary-name strong{font-size:18px;overflow-wrap:anywhere}
+.knowledge-pinyin{font-size:14px;font-weight:400;color:var(--muted);margin-left:4px}
+.cultural-recommendations{margin:24px 0;padding:20px;border:1px solid var(--glass-edge-dim);border-radius:var(--r-card);background:var(--glass-clear)}
+.cultural-recommendations h3{font-size:15px;margin:0}
+.cultural-topic-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.cultural-topic{display:flex;gap:10px;align-items:flex-start;padding:12px;border:1px solid var(--glass-edge-dim);border-radius:10px;cursor:pointer;min-width:0}
+.cultural-topic.is-selected{border-color:var(--accent);background:var(--surface-solid)}
+.cultural-topic input{width:auto;flex-shrink:0;margin-top:4px;accent-color:var(--accent)}
+.cultural-topic strong{font-size:13px;overflow-wrap:anywhere}
+.cultural-topic small{display:block;font-size:11px;color:var(--muted);margin-top:4px}
+@media(max-width:600px){.cultural-topic-grid{grid-template-columns:1fr}}
+.knowledge-summary-state{flex-shrink:0}
+.knowledge-summary-state svg{transition:transform .2s ease}
+.knowledge-fold[open]>.knowledge-summary .knowledge-summary-state svg{transform:rotate(180deg)}
+.knowledge-summary:focus-visible{outline:2px solid var(--accent);outline-offset:-4px;border-radius:var(--r-card)}
+.knowledge-fold-content{padding:18px 20px 20px;border-top:1px solid var(--glass-edge-dim)}
+.knowledge-role{display:flex;align-items:center;justify-content:space-between;gap:14px;font-size:12px;color:var(--muted);margin-bottom:12px}
+.knowledge-role select{width:auto;padding:8px 12px;font-size:12px}
+.character-resource-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;margin:16px 0}
+.character-resource-grid img,.character-resource-grid video{display:block;width:100%;max-width:360px;max-height:360px;object-fit:contain;margin:12px 0}
+.character-resource-grid a{display:inline-block;font-size:13px;color:var(--accent-ink)}
+@media(max-width:600px){.character-resource-grid{grid-template-columns:1fr}}
+@media(prefers-reduced-motion:reduce){.knowledge-summary-state svg{transition:none}}

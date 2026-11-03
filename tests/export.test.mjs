@@ -120,3 +120,22 @@ test('a list with several items still gets 1. 2. 3. numbering',async()=>{
  assert.ok(teacher.includes('练习 1'),'多条练习应带编号');
  assert.ok(teacher.includes('练习 2'));
 });
+
+test('teacher Word export preserves learner background and classroom environment',async()=>{
+ const {makeWord}=await compile('lib/export.ts',{name:'context-export',setup(b){b.onResolve({filter:/^\.\/server$/},()=>({path:'server',namespace:'fixture'}));b.onLoad({filter:/.*/,namespace:'fixture'},()=>({contents:`export const config=()=>({});export class AppError extends Error{}`,loader:'js'}))}});
+ const contextual={...draft,brief:{...draft.brief,teachingLocation:'海外',audience:{...draft.brief.audience,motherTongue:'日语、泰语',culturalBackground:'多国混合'}}};
+ const blob=await makeWord(contextual,'teacher');
+ const text=Buffer.from(await blob.arrayBuffer()).toString('utf8');
+ for(const value of ['日语、泰语','多国混合','授课地点：海外','《等级标准》 3级'])assert.ok(text.includes(value),'missing context '+value);
+});
+test('grammar example questions and stem links enter teacher and student materials while student export omits graph answers',async()=>{
+ const {makeWord}=await compile('lib/export.ts',{name:'grammar-export',setup(b){b.onResolve({filter:/^\.\/server$/},()=>({path:'server',namespace:'fixture'}));b.onLoad({filter:/.*/,namespace:'fixture'},()=>({contents:`export const config=()=>({});export class AppError extends Error{}`,loader:'js'}))}});
+ const question={id:'Question:fixture',name:'图谱例题标题',description:'请选择恰当的表达。',stem:'https://kg.chineseplus.net/fixture-stem.png',corpus:'图谱语料',choices:'A甲 B乙',answer:'独立答案标记',listenStem:'',listenCorpus:'',links:[{label:'题干链接',url:'https://kg.chineseplus.net/fixture-stem.png'}]};
+ const knowledge=[{...k[0],kind:'Grammar',grammarQuestions:[question],selectedQuestionIds:[question.id]}];
+ for(const kind of ['teacher','student']){
+  const blob=await makeWord({...draft,knowledge},kind),text=Buffer.from(await blob.arrayBuffer()).toString('utf8');
+  assert.ok(text.includes('图谱例题标题'));
+  assert.ok(text.includes('https://kg.chineseplus.net/fixture-stem.png'));
+  assert.equal(text.includes('独立答案标记'),kind==='teacher');
+ }
+});
