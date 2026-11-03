@@ -2,19 +2,21 @@
 import { useEffect, useRef, useState } from 'react';
 import { ChevronDown, Check } from 'lucide-react';
 import { formatAudience } from '@/lib/evidence';
-import type { Audience } from '@/lib/lesson';
+import { standardNames, type Audience } from '@/lib/lesson';
 
 /**
  * 组合式「教学对象」输入面板。
  *
- * 界面上是一个只读输入框（带下拉箭头），点开后才展开国籍 / 年龄 / 水平三个字段。
+ * 界面上是一个只读输入框（带下拉箭头），点开后才展开国家／地区、年龄、汉语等级、母语和文化背景字段。
  * 底层仍保留三个子字段（nationality / age / level），只是不直接平铺在页面上。
  */
 export default function AudiencePicker({
   value,
+  standard,
   onChange,
 }: {
   value: Audience;
+  standard: string;
   onChange: (next: Audience) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -49,10 +51,13 @@ export default function AudiencePicker({
     };
   }, [open]);
 
-  const summary = formatAudience(value);
+  const summary = formatAudience(value,standard);
 
   function confirm() {
     onChange({
+      ...draft,
+      motherTongue: (draft.motherTongue||'').trim(),
+      culturalBackground: draft.culturalBackground||'',
       nationality: draft.nationality.trim(),
       age: draft.age.trim(),
       level: draft.level,
@@ -77,12 +82,12 @@ export default function AudiencePicker({
         <div className="audience-panel" role="dialog" aria-label="教学对象">
           <div className="audience-panel-grid">
             <label className="field">
-              国籍
+              学生国家／地区
               <input
                 value={draft.nationality}
                 maxLength={60}
                 onChange={e => setDraft(d => ({ ...d, nationality: e.target.value }))}
-                placeholder="例如：美国"
+                placeholder="例如：日本；或日本、泰国、法国"
               />
             </label>
             <label className="field">
@@ -95,16 +100,26 @@ export default function AudiencePicker({
               />
             </label>
             <label className="field">
-              水平
+              当前汉语等级
               <select value={draft.level} onChange={e => setDraft(d => ({ ...d, level: e.target.value }))}>
+                <option value="">未指定</option>
                 {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map(x => (
                   <option key={x} value={x}>
-                    HSK {x}级
+                    {standardNames[standard]} {x}级
                   </option>
                 ))}
               </select>
             </label>
+            <label className="field">学生母语
+              <input value={draft.motherTongue||''} maxLength={100} onChange={e=>setDraft(d=>({...d,motherTongue:e.target.value}))} placeholder="例如：日语；或英语、泰语等多种母语"/>
+            </label>
+            <label className="field">文化背景构成
+              <select value={draft.culturalBackground||''} onChange={e=>setDraft(d=>({...d,culturalBackground:e.target.value as Audience['culturalBackground']}))}>
+                <option value="">未指定</option><option value="单一国家">单一国家背景</option><option value="多国混合">多国混合背景</option>
+              </select>
+            </label>
           </div>
+          <p className="helper">多国班级可填写多个国家与母语；国籍不会自动决定学生母语或文化习惯。</p>
           <div className="audience-panel-actions">
             <button type="button" className="text-button" onClick={() => setOpen(false)}>
               取消
