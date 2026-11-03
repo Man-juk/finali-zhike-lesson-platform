@@ -2114,3 +2114,136 @@ main{max-width:1440px;margin:auto;padding:14px 44px 0;position:relative}
 .character-resource-grid a{display:inline-block;font-size:13px;color:var(--accent-ink)}
 @media(max-width:600px){.character-resource-grid{grid-template-columns:1fr}}
 @media(prefers-reduced-motion:reduce){.knowledge-summary-state svg{transition:none}}
+
+/* ======================================================================
+   教案结构偏好（template-config）
+   ----------------------------------------------------------------------
+   侧栏里的一块独立玻璃卡片。折叠态只留一行摘要，展开后是
+   预设套餐 / 模块开关 / 特别要求三段。
+   配色沿用青瓷白令牌：莫兰迪绿只作填充，深绿只作文字。
+   ====================================================================== */
+.template-config{
+  margin:0 6px;
+  border-radius:var(--r-nested);
+  background:var(--glass-soft);
+  border:1px solid var(--glass-edge-dim);
+  box-shadow:var(--glass-shadow),inset 0 0.5px 0 var(--glass-edge);
+  -webkit-backdrop-filter:var(--glass-blur-soft);
+  backdrop-filter:var(--glass-blur-soft);
+  overflow:hidden;
+}
+.template-config-trigger{
+  display:flex;align-items:center;gap:10px;width:100%;
+  padding:13px 14px;text-align:left;
+  transition:background .18s ease;
+}
+.template-config-trigger:hover{background:var(--accent-wash)}
+.template-config-trigger>svg{flex-shrink:0;color:var(--muted);transition:transform .18s ease}
+.template-config.open .template-config-trigger>svg{transform:rotate(180deg)}
+.template-config-icon{
+  flex-shrink:0;display:grid;place-items:center;
+  width:30px;height:30px;border-radius:10px;
+  background:var(--accent-wash);color:var(--accent-ink);
+}
+.template-config-summary{display:flex;flex-direction:column;gap:3px;min-width:0;flex:1}
+.template-config-title{font-size:12px;font-weight:500;color:var(--ink)}
+.template-config-hint{
+  font-size:10px;color:var(--muted);line-height:1.6;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.template-config-hint em{font-style:normal;color:var(--accent-ink)}
+
+.template-config-body{padding:2px 14px 16px;border-top:1px solid var(--glass-edge-dim)}
+.template-config-section{margin-top:16px}
+.template-config-label{
+  display:flex;align-items:center;gap:6px;
+  font-size:11px;color:var(--muted);letter-spacing:.04em;margin-bottom:10px;
+}
+.template-config-label>svg{color:var(--accent-ink)}
+.template-config-label em{font-style:normal;margin-left:auto;color:var(--accent-ink)}
+
+/* 预设套餐：四张迷你卡片 */
+.template-preset-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.template-preset{
+  display:flex;flex-direction:column;gap:3px;
+  padding:9px 10px;text-align:left;
+  border-radius:10px;
+  background:var(--surface-solid);
+  border:1px solid var(--glass-edge-dim);
+  transition:background .18s ease,border-color .18s ease,transform .18s ease;
+}
+.template-preset:hover{border-color:var(--accent-ring);transform:translateY(-1px)}
+.template-preset.chosen{
+  background:var(--accent-wash);
+  border-color:var(--accent);
+  box-shadow:inset 0 0 0 0.5px rgba(129,178,154,.35);
+}
+.template-preset-name{
+  display:flex;align-items:center;gap:4px;
+  font-size:11px;font-weight:500;color:var(--ink);line-height:1.5;
+}
+.template-preset.chosen .template-preset-name{color:var(--accent-ink)}
+.template-preset-name>svg{flex-shrink:0;color:var(--accent-ink)}
+.template-preset-hint{font-size:9px;color:var(--muted);line-height:1.55}
+
+/* 模块开关：自定义的 iOS 风格小拨杆 */
+.template-module-list{display:flex;flex-direction:column;gap:2px}
+.template-module{
+  display:flex;align-items:center;gap:9px;
+  padding:6px 4px;border-radius:8px;cursor:pointer;
+  transition:background .18s ease;
+}
+.template-module:hover{background:var(--accent-wash)}
+.template-module input{
+  position:absolute;opacity:0;width:0;height:0;
+}
+.template-module-track{
+  flex-shrink:0;position:relative;
+  width:30px;height:17px;border-radius:var(--r-pill);
+  background:var(--bg-line);
+  box-shadow:inset 0 0 0 0.5px rgba(18,33,31,.08);
+  transition:background .2s ease;
+}
+.template-module-track>span{
+  position:absolute;top:2px;left:2px;
+  width:13px;height:13px;border-radius:50%;
+  background:#fff;box-shadow:0 1px 3px rgba(18,33,31,.22);
+  transition:transform .2s cubic-bezier(.22,1,.36,1);
+}
+.template-module input:checked+.template-module-track{background:var(--accent)}
+.template-module input:checked+.template-module-track>span{transform:translateX(13px)}
+.template-module input:focus-visible+.template-module-track{
+  outline:2px solid var(--accent-ink);outline-offset:2px;
+}
+.template-module-label{font-size:11.5px;color:var(--ink);line-height:1.6}
+.template-module input:checked~.template-module-label{color:var(--ink)}
+
+.template-config-section textarea{
+  margin-top:0;padding:10px 12px;font-size:12px;line-height:1.8;
+  resize:vertical;min-height:78px;
+}
+.template-config-section .helper{margin:8px 0 0;font-size:10px;line-height:1.75}
+
+@media(max-width:640px){
+  .template-preset-grid{grid-template-columns:1fr}
+}
+@media(prefers-reduced-motion:reduce){
+  .template-config-trigger>svg,.template-module-track,.template-module-track>span{transition:none}
+}
+
+/* 窄屏入口：侧栏在 920px 以下隐藏，改由顶栏按钮弹窗承载同一面板。 */
+.template-mobile-trigger{
+  display:none;align-items:center;gap:6px;
+  font-size:12px;color:var(--accent-ink);
+  padding:7px 12px;border-radius:var(--r-pill);
+  background:var(--accent-wash);
+  transition:background .18s ease;
+}
+.template-mobile-trigger:hover{background:var(--accent-soft)}
+.template-modal{width:560px}
+.template-modal .template-config{margin:0}
+.template-modal .template-config-body{border-top:0;padding:18px 2px 4px}
+.template-modal .template-config-trigger{display:none}
+@media(max-width:920px){
+  .template-mobile-trigger{display:inline-flex}
+}

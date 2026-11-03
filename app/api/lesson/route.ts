@@ -3,7 +3,7 @@ import { body,json,failure,session,config,AppError } from '@/lib/server';
 import { searchGraph } from '@/lib/graph';
 import {allGrammarTerms} from '@/lib/grammar-recommendations';
 import {culturalGraph} from '@/lib/cultural-graph';
-import { briefSchema,lessonSchema,splitTerms,checkLesson,withFixedTitle } from '@/lib/lesson';
+import { briefSchema,lessonSchema,splitTerms,checkLesson,withFixedTitle,disabledTemplateModules,templateModules } from '@/lib/lesson';
 import {modelRequest,modelInfo} from '@/lib/model';
 import { z } from 'zod';
 import { selectionSchema,automaticSelections,validateSelections,lessonPrompt,groundedBlocks,checkEvidenceBoundary,PROMPT_VERSION } from '@/lib/evidence';
@@ -37,7 +37,18 @@ export async function POST(req:Request){try{const b=await body(req,2000000);cons
  const revision=typeof b.revision==='string'?b.revision.slice(0,1000):'';
  const previous=b.previous?lessonSchema.safeParse(b.previous):null;
  if(b.previous&&!previous?.success)throw new AppError('待修订教案格式无效。');
- const example={title:brief.topic,goals:[{id:'g1',domain:'认知领域',text:'可观察的学习成果',knowledgeIds:['输入中的知识id']},{id:'g2',domain:'技能领域',text:'可观察的交际产出',knowledgeIds:['输入中的知识id']},{id:'g3',domain:'情感领域',text:'学生愿意做的具体行为',knowledgeIds:['输入中的知识id']}],difficulties:[{text:'本课学生最可能卡住的具体问题'}],activities:[{id:'a1',title:'环节标题',minutes:5,goalIds:['g1'],knowledgeIds:['输入中的知识id'],teacher:'具体教师指令与示范语言',students:'具体学生行动',grouping:'分组方式',output:'可观察成果',assessment:'评价方法'}],materials:[{title:'角色卡A',content:'可直接发给学生的完整信息，与B卡不同'}],exercises:[{question:'完整题目',answer:'参考答案或具体评分标准',goalIds:['g1'],knowledgeIds:['输入中的知识id']}],board:'具体板书内容',homework:'基础与拓展任务',notes:'待教师核验事项'};
+ /**
+  * 输出结构示例：只展示本次开启的模块。
+  * 关掉的模块连示例都不给，否则模型会照着示例把它补回来。
+  */
+ const off=new Set(disabledTemplateModules(brief.templateConfig));
+ const example={title:brief.topic,
+  ...(off.has('goals')?{}:{goals:[{id:'g1',domain:'认知领域',text:'可观察的学习成果',knowledgeIds:['输入中的知识id']},{id:'g2',domain:'技能领域',text:'可观察的交际产出',knowledgeIds:['输入中的知识id']},{id:'g3',domain:'情感领域',text:'学生愿意做的具体行为',knowledgeIds:['输入中的知识id']}],difficulties:[{text:'本课学生最可能卡住的具体问题'}]}),
+  activities:[{id:'a1',title:'环节标题',minutes:5,goalIds:['g1'],knowledgeIds:['输入中的知识id'],teacher:'具体教师指令与示范语言',students:'具体学生行动',grouping:'分组方式',output:'可观察成果',assessment:'评价方法'}],
+  materials:[{title:'角色卡A',content:'可直接发给学生的完整信息，与B卡不同'}],
+  ...(off.has('exercises')?{}:{exercises:[{question:'完整题目',answer:'参考答案或具体评分标准',goalIds:['g1'],knowledgeIds:['输入中的知识id']}]}),
+  ...(off.has('appendix')?{}:{board:'具体板书内容',homework:'基础与拓展任务'}),
+  notes:'待教师核验事项'};
  const prompt=lessonPrompt(brief,knowledge,example,culturalEvidence);
  const messages:{role:string;content:string}[]=[{role:'system',content:prompt},{role:'user',content:JSON.stringify({brief:{...brief,terms:knowledge.map(k=>k.name).join('、')},knowledge:groundedBlocks(knowledge),previous:previous?.success?previous.data:null,revision})}];
  let candidate:ReturnType<typeof lessonSchema.parse>|null=null;
@@ -51,7 +62,19 @@ export async function POST(req:Request){try{const b=await body(req,2000000);cons
  candidate=withFixedTitle(l.data,brief.topic);
  warnings=[...new Set([...checkLesson(candidate,brief,knowledge).filter(x=>x.severity==='error').map(x=>x.text),...checkEvidenceBoundary(candidate,knowledge)])];
  if(!warnings.length)return finish();
- if(attempt===0){messages.push({role:'assistant',content:JSON.stringify(candidate)},{role:'user',content:'请修订完整教案 JSON，优先修复以下问题。不得新增或伪造图谱知识，knowledgeIds 必须来自证据包，goalIds 必须来自本教案目标。goals 每项必须带 domain 且只能是「认知领域」「技能领域」「情感领域」，三个领域都要有目标；必须保留并输出 difficulties。没有语法证据时，仅安排原句理解、情境选择和交流任务，不总结语法规则。活动时间合计必须等于 '+brief.minutes+' 分钟。lesson.title 必须原封不动等于「课程主题」，不得添加课型、时长、括号等任何后缀。待修复：'+warnings.join(' ')});continue}
+ if(attempt===0){
+  /**
+   * 修订指令必须与结构偏好一致：老师关掉的模块，
+   * 修订时也不能「补回来」，否则模型会把它们重新加回去。
+   */
+  const revisionRules=['不得新增或伪造图谱知识，knowledgeIds 必须来自证据包，goalIds 必须来自本教案目标。'];
+  if(!off.has('goals'))revisionRules.push('goals 每项必须带 domain 且只能是「认知领域」「技能领域」「情感领域」，三个领域都要有目标；必须保留并输出 difficulties。');
+  if(!off.has('exercises'))revisionRules.push('每个教学目标都要有对应的检查题或练习。');
+  if(!off.has('grammar'))revisionRules.push('没有语法证据时，仅安排原句理解、情境选择和交流任务，不总结语法规则。');
+  revisionRules.push('活动时间合计必须等于 '+brief.minutes+' 分钟。lesson.title 必须原封不动等于「课程主题」，不得添加课型、时长、括号等任何后缀。');
+  if(off.size)revisionRules.push('老师已关闭以下模块，本次教案不得包含它们：'+[...off].map(k=>templateModules.find(m=>m.key===k)?.label??k).join('、')+'。');
+  messages.push({role:'assistant',content:JSON.stringify(candidate)},{role:'user',content:'请修订完整教案 JSON，优先修复以下问题。'+revisionRules.join(' ')+'待修复：'+warnings.join(' ')});continue
+ }
  return finish();
  }catch(e){if(candidate){warnings.push('自动修订未完成，已保留上一次完整生成结果。请按下方问题人工调整，或稍后使用“修订”。');return finish()}throw e}
  }

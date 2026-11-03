@@ -9,24 +9,13 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 
-export type Module =
-  | 'dashboard'
-  | 'knowledge'
-  | 'design'
-  | 'materials'
-  | 'history'
-  | 'account'
-  | 'admin';
+import { moduleTitles, type Module } from '@/lib/modules';
 
-export const moduleTitles: Record<Module, string> = {
-  dashboard: '我的工作台',
-  knowledge: '知识检索与确认',
-  design: '教案设计',
-  materials: '教学材料',
-  history: '历史会话与版本',
-  account: '账号与设置',
-  admin: '管理员窗口',
-};
+/**
+ * Module 与 moduleTitles 定义在 @/lib/modules（服务端/客户端共用模块），
+ * 这里再导出一次，保留原有 import 路径不变。
+ */
+export { moduleTitles, type Module };
 
 /** 顶部胶囊的一个导航项。href 为真实路径，点击即跳转。 */
 export type CapsuleTab = {
