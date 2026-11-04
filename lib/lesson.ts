@@ -34,11 +34,47 @@ export type Audience=z.infer<typeof audienceSchema>;
 export const knowledgeColumns=[{key:'characters',label:'汉字',example:'旅、游、比'},{key:'vocabulary',label:'词汇',example:'便宜、方便、建议'},{key:'grammar',label:'语法',example:'比字句、把字句'},{key:'culture',label:'文化',example:'节日习俗、饮食礼仪'},{key:'other',label:'其他',example:'跨文化交际任务、学习策略'}] as const;
 export const knowledgeGroupsSchema=z.object({characters:z.string().max(1200).default(''),vocabulary:z.string().max(1200).default(''),grammar:z.string().max(1200).default(''),culture:z.string().max(1200).default(''),other:z.string().max(1200).default('')});
 export type KnowledgeGroups=z.infer<typeof knowledgeGroupsSchema>;
-export function getKnowledgeGroups(brief:{terms:string;knowledgeGroups?:KnowledgeGroups}):KnowledgeGroups{
- return brief.knowledgeGroups??{characters:'',vocabulary:brief.terms||'',grammar:'',culture:'',other:''};
+const emptyKnowledgeGroups=(terms=''):KnowledgeGroups=>({characters:'',vocabulary:terms,grammar:'',culture:'',other:''});
+export function getKnowledgeGroups(brief:{terms:string;knowledgeGroups?:Partial<KnowledgeGroups>|KnowledgeGroups}):KnowledgeGroups{
+ const base=emptyKnowledgeGroups(brief.terms||'');
+ if(!brief.knowledgeGroups||typeof brief.knowledgeGroups!=='object')return base;
+ return {...base,...brief.knowledgeGroups};
 }
-export function graphTermsFromGroups(groups:KnowledgeGroups):string{
- return [...new Set([groups.characters,groups.vocabulary,groups.grammar].flatMap(x=>x.split(/[、，,；;\n]+/).map(t=>t.trim()).filter(Boolean)))].join('、');
+export function graphTermsFromGroups(groups:Partial<KnowledgeGroups>|KnowledgeGroups|undefined):string{
+ const split=(raw:unknown)=>typeof raw==='string'&&raw?raw.split(/[、，,；;\n]+/).map(t=>t.trim()).filter(Boolean):[];
+ return [...new Set(split(groups?.characters).concat(split(groups?.vocabulary),split(groups?.grammar)))].join('、');
+}
+/** 节点名称是否出现在 brief 对应类别的指定词中（类别与 kind 必须一致，避免「吃」同时当汉字和词汇残留）。 */
+export function knowledgeInBriefScope(item:Knowledge,brief:{terms:string;knowledgeGroups?:Partial<KnowledgeGroups>|KnowledgeGroups}):boolean{
+ const g=getKnowledgeGroups(brief);
+ if(item.kind==='Character')return splitTerms(g.characters).includes(item.name);
+ if(item.kind==='Word')return splitTerms(g.vocabulary).includes(item.name);
+ if(item.kind==='Grammar')return splitTerms(g.grammar).includes(item.name);
+ if(item.kind==='Idiom'){
+  const vocab=new Set(splitTerms(g.vocabulary));
+  return vocab.has(item.name);
+ }
+ return false;
+}
+/** 只保留仍出现在 knowledgeGroups 指定范围内的节点，去掉 localStorage 里与当前 brief 无关的历史项。 */
+export function pruneKnowledgeToBrief(list:Knowledge[],brief:{terms:string;knowledgeGroups?:Partial<KnowledgeGroups>|KnowledgeGroups}):Knowledge[]{
+ return list.filter(k=>knowledgeInBriefScope(k,brief));
+}
+export const graphSearchStandards=['InternationalLevel','HSKLevel','HSK30Level'] as const;
+export type GraphSearchStandard=typeof graphSearchStandards[number];
+/** 图谱检索使用的等级体系，缺省为国际中文教育等级标准。 */
+export function graphSearchStandard(brief:{standard?:string}):GraphSearchStandard{
+ const s=brief.standard;
+ return graphSearchStandards.includes(s as GraphSearchStandard)?(s as GraphSearchStandard):'InternationalLevel';
+}
+/** 向导本步刚搜索的词写入 knowledgeGroups，避免 prune 在标签尚未同步时误删匹配结果。 */
+export function augmentBriefWithStepTerms(brief:Brief,stepKey:'characters'|'vocabulary'|'grammar',terms:string[]):Brief{
+ const groups={...getKnowledgeGroups(brief)};
+ groups[stepKey]=[...new Set([...splitTerms(groups[stepKey]),...terms])].filter(Boolean).join('、');
+ const merged:Partial<KnowledgeGroups>={};
+ for(const k of ['characters','vocabulary','grammar','culture','other'] as const){const v=groups[k]?.trim();if(v)merged[k]=v}
+ const knowledgeGroups=Object.keys(merged).length?(merged as KnowledgeGroups):undefined;
+ return {...brief,knowledgeGroups,terms:graphTermsFromGroups(getKnowledgeGroups({...brief,knowledgeGroups,terms:brief.terms}))};
 }
 /**
  * 旧草稿迁移：
@@ -282,6 +318,10 @@ export function withFixedTitle<T extends {title:string}>(lesson:T,topic:string):
 }
 export type Draft={culturalEvidence?:import('./cultural-topics').CulturalCandidate[];brief:Brief;knowledge:Knowledge[];lesson:Lesson;source:'template'|'deepseek'|'model';createdAt:string;promptVersion?:string;model?:string;reviewed?:boolean;validationWarnings?:string[];messages?:{role:'user'|'assistant';content:string;at:string}[]};
 export const initialBrief:Brief={topic:'比较周末出游方案并提出建议',standard:'InternationalLevel',courseType:'综合课',minutes:45,students:20,mode:'线下课堂',teachingLocation:'',audience:{nationality:'来华留学生',age:'20',level:'3',motherTongue:'',culturalBackground:''},referenceMaterial:'《HSK标准教程》3',outcome:'学生能比较两个出游方案，提出建议，并用至少两条理由说明小组的选择。',passage:'',terms:'便宜、方便、建议、比较、比',templateConfig:defaultTemplateConfig};
+/** 新建教案时的 brief：不含上次指定的 knowledgeGroups / 文化主题，图谱检索词为空。 */
+export function freshBriefForNewLesson():Brief{
+ return {...initialBrief,knowledgeGroups:undefined,culturalTopics:undefined,terms:''};
+}
 export function splitTerms(s:string){return [...new Set(s.split(/[、，,；;\n]+/).map(s=>s.trim()).filter(Boolean))].slice(0,20)}
 export function manualKnowledge(brief:Brief):Knowledge[]{
  const groups=brief.knowledgeGroups;

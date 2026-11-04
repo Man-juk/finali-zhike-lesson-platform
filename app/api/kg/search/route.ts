@@ -1,4 +1,4 @@
 import { body,json,failure,session,AppError } from '@/lib/server';
 import { z } from 'zod';
 import { searchGraph } from '@/lib/graph';
-export async function POST(req:Request){try{const b=await body(req),s=await session();if(!z.array(z.string().min(1).max(80)).min(1).max(20).safeParse(b.terms).success)throw new AppError('请先输入待核验的知识点。');return json({knowledge:await searchGraph(s!.token,b.terms,b.standard)})}catch(e){return failure(e)}}
+export async function POST(req:Request){try{const b=await body(req),s=await session();if(!z.array(z.string().min(1).max(80)).min(1).max(20).safeParse(b.terms).success)throw new AppError('请先输入待核验的知识点。');const standard=typeof b.standard==='string'&&['InternationalLevel','HSKLevel','HSK30Level'].includes(b.standard)?b.standard:'InternationalLevel';console.log('[api/kg/search] request',{termCount:b.terms?.length,standard,connected:!!s?.token});const knowledge=await searchGraph(s!.token,b.terms,standard);console.log('[api/kg/search] ok',{knowledgeCount:knowledge.length});return json({knowledge})}catch(e){console.error('[api/kg/search] failed',e instanceof Error?{name:e.name,message:e.message,stack:e.stack}:e);return failure(e)}}

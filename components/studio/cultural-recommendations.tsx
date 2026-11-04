@@ -3,7 +3,7 @@ import {useEffect,useState} from 'react';
 import type {Brief} from '@/lib/lesson';
 import {culturalKinds,type CulturalTopic} from '@/lib/cultural-topics';
 
-export function CulturalRecommendations({brief,connected,username,onChange}:{brief:Brief;connected:boolean;username:string;onChange:(topics:CulturalTopic[])=>void}){
+export function CulturalRecommendations({brief,connected,username,onChange,embedded}:{brief:Brief;connected:boolean;username:string;onChange:(topics:CulturalTopic[])=>void;embedded?:boolean}){
  const [topics,setTopics]=useState<CulturalTopic[]>([]),[busy,setBusy]=useState(false),[error,setError]=useState(''),[message,setMessage]=useState('');
  const context=JSON.stringify({topic:brief.topic,passage:brief.passage,outcome:brief.outcome,audience:brief.audience});
  const cacheKey='zhike-cultural-recommendations';
@@ -32,9 +32,9 @@ export function CulturalRecommendations({brief,connected,username,onChange}:{bri
  },[context,connected,username]);
  const selected=brief.culturalTopics||[];
  const visible=[...topics,...selected.filter(item=>!topics.some(topic=>topic.id===item.id))];
- return <section className="cultural-recommendations" aria-label="文化主题推荐">
-  <div className="knowledge-toolbar"><div><h3>相关文化主题词（选填）</h3><p className="helper">根据主题、课文与预期成果，从图谱四类文化节点中推荐最多 10 项。勾选后用于教案设计。</p></div><button type="button" className="secondary" disabled={!connected||busy} onClick={()=>void recommend(undefined,true)}>{busy?'正在推荐…':'重新推荐'}</button></div>
-  {!connected&&<p className="helper">连接知识图谱后自动获取推荐。</p>}
+ return <section className={'cultural-recommendations'+(embedded?' wizard-embedded':'')} aria-label="文化主题推荐">
+  <div className="knowledge-toolbar"><div>{!embedded&&<><h3>相关文化主题词（选填）</h3><p className="helper">根据主题、课文与预期成果，从图谱四类文化节点中推荐最多 10 项。勾选后用于教案设计。</p></>}{embedded&&<p className="helper wizard-embedded-lead">从图谱推荐文化主题，勾选后用于本课设计（最多 10 项）。</p>}</div><button type="button" className="secondary" disabled={!connected||busy} onClick={()=>void recommend(undefined,true)}>{busy?'正在推荐…':'重新推荐'}</button></div>
+  {!connected&&!embedded&&<p className="helper">连接知识图谱后自动获取推荐。</p>}
   {busy&&<p role="status" className="helper">正在查询文化图谱并匹配相关主题…</p>}
   {error&&<p role="alert" className="message error">{error}</p>}
   {message&&<p role="status" className="helper">{message}</p>}

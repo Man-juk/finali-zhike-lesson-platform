@@ -69,6 +69,14 @@ test('an empty custom instruction adds nothing',()=>{
  assert.ok(!lessonPrompt(brief,[],shape).includes('【用户的特殊排版/风格要求'));
 });
 
+test('the prompt requires full JSON keys even when modules are disabled',()=>{
+ const brief=withModules({exercises:false,appendix:false});
+ const p=lessonPrompt(brief,[],shape);
+ assert.ok(p.includes('【JSON 形状】'),'缺少 JSON 形状说明');
+ assert.ok(p.includes('九个键'),'未说明必填键');
+ assert.ok(p.includes('exercises 用空数组'),'未说明 exercises 可为空数组');
+});
+
 test('the preset and the module switches stay consistent with each other',()=>{
  // 精简版默认不带练习与附录：提示词必须按开关说话，而不是按套餐名说话
  const brief=withTemplate({preset:'concise',modules:presetModules.concise});

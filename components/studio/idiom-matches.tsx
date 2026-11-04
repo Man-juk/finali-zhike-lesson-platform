@@ -2,7 +2,7 @@
 import {useEffect,useState} from 'react';
 import type {Brief,Knowledge} from '@/lib/lesson';
 import {idiomContext,idiomOrigins} from '@/lib/idioms';
-export function IdiomMatches({brief,connected,username,knowledge,onChoose}:{brief:Brief;connected:boolean;username:string;knowledge:Knowledge[];onChoose:(item:Knowledge,checked:boolean)=>void}){
+export function IdiomMatches({brief,connected,username,knowledge,onChoose,embedded}:{brief:Brief;connected:boolean;username:string;knowledge:Knowledge[];onChoose:(item:Knowledge,checked:boolean)=>void;embedded?:boolean}){
  const [idioms,setIdioms]=useState<Knowledge[]>([]),[busy,setBusy]=useState(false),[error,setError]=useState(''),[loaded,setLoaded]=useState(false);
  const context=idiomContext(brief),cacheKey='zhike-idiom-matches';
  async function search(signal?:AbortSignal,force=false){
@@ -24,9 +24,9 @@ export function IdiomMatches({brief,connected,username,knowledge,onChoose}:{brie
   // Only the input text and account affect graph matches, not the checked items.
   // eslint-disable-next-line react-hooks/exhaustive-deps
  },[context,connected,username]);
- return <section className="cultural-recommendations" aria-label="图谱成语匹配">
-  <div className="knowledge-toolbar"><div><h3>成语匹配（选填）</h3><p className="helper">从教师输入和课文中查找图谱实际收录的成语。勾选后可在下方知识点中查看释义、典故并选择例句。</p></div><button type="button" className="secondary" disabled={!connected||busy} onClick={()=>void search(undefined,true)}>{busy?'正在查询…':'重新查询成语'}</button></div>
-  {!connected&&<p className="helper">连接图谱后自动查询，无需调用 AI。</p>}
+ return <section className={'cultural-recommendations'+(embedded?' wizard-embedded':'')} aria-label="图谱成语匹配">
+  <div className="knowledge-toolbar"><div>{!embedded&&<><h3>成语匹配（选填）</h3><p className="helper">从教师输入和课文中查找图谱实际收录的成语。勾选后可在下方知识点中查看释义、典故并选择例句。</p></>}{embedded&&<p className="helper wizard-embedded-lead">根据本课输入与课文，从图谱匹配成语；勾选后在下方卡片中确认例句。</p>}</div><button type="button" className="secondary" disabled={!connected||busy} onClick={()=>void search(undefined,true)}>{busy?'正在查询…':'重新查询'}</button></div>
+  {!connected&&!embedded&&<p className="helper">连接图谱后自动查询，无需调用 AI。</p>}
   {busy&&<p className="helper" role="status">正在查询图谱成语节点…</p>}
   {error&&<p className="message error" role="alert">{error}</p>}
   {loaded&&!idioms.length&&<p className="helper">当前输入未匹配到可访问的图谱成语。</p>}

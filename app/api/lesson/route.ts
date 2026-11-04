@@ -3,11 +3,27 @@ import { body,json,failure,session,config,AppError } from '@/lib/server';
 import { searchGraph } from '@/lib/graph';
 import {allGrammarTerms} from '@/lib/grammar-recommendations';
 import {culturalGraph} from '@/lib/cultural-graph';
-import { briefSchema,lessonSchema,splitTerms,checkLesson,withFixedTitle,disabledTemplateModules,templateModules } from '@/lib/lesson';
+import { briefSchema,lessonSchema,splitTerms,checkLesson,withFixedTitle,disabledTemplateModules,templateModules,type Brief,type TemplateModuleKey } from '@/lib/lesson';
 import {modelRequest,modelInfo} from '@/lib/model';
 import { z } from 'zod';
 import { selectionSchema,automaticSelections,validateSelections,lessonPrompt,groundedBlocks,checkEvidenceBoundary,PROMPT_VERSION } from '@/lib/evidence';
 const selection=z.array(selectionSchema).max(1000).default([]);
+
+/** 与 lessonSchema 对齐的生成示例：关闭的模块用空值，但键名必须齐全；activities 至少 2 项。 */
+function buildLessonGenerationExample(brief:Brief,off:Set<TemplateModuleKey>){
+ const goals=off.has('goals')?[]:[{id:'g1',domain:'认知领域',text:'可观察的学习成果',knowledgeIds:['输入中的知识id']},{id:'g2',domain:'技能领域',text:'可观察的交际产出',knowledgeIds:['输入中的知识id']},{id:'g3',domain:'情感领域',text:'学生愿意做的具体行为',knowledgeIds:['输入中的知识id']}];
+ const goalIds=off.has('goals')?[]:['g1'];
+ const activity=(id:string,title:string)=>({id,title,minutes:5,goalIds,knowledgeIds:['输入中的知识id'],teacher:'具体教师指令与示范语言',students:'具体学生行动',grouping:'分组方式',output:'可观察成果',assessment:'评价方法'});
+ return {title:brief.topic,goals,difficulties:off.has('goals')?[]:[{text:'本课学生最可能卡住的具体问题'}],activities:[activity('a1','环节一'),activity('a2','环节二')],materials:[{title:'角色卡A',content:'可直接发给学生的完整信息，与B卡不同'}],exercises:off.has('exercises')?[]:[{question:'完整题目',answer:'参考答案或具体评分标准',goalIds:['g1'],knowledgeIds:['输入中的知识id']}],board:off.has('appendix')?'':'具体板书内容',homework:off.has('appendix')?'':'基础与拓展任务',notes:'待教师核验事项'};
+}
+
+/** 模型偶发省略键名时，在 Zod 校验前补全与 schema 一致的默认值。 */
+function coalesceLessonJson(raw:unknown):unknown{
+ if(!raw||typeof raw!=='object'||Array.isArray(raw))return raw;
+ const r=raw as Record<string,unknown>;
+ return {title:r.title??'',goals:Array.isArray(r.goals)?r.goals:[],difficulties:Array.isArray(r.difficulties)?r.difficulties:[],activities:Array.isArray(r.activities)?r.activities:[],materials:Array.isArray(r.materials)?r.materials:[],exercises:Array.isArray(r.exercises)?r.exercises:[],board:typeof r.board==='string'?r.board:'',homework:typeof r.homework==='string'?r.homework:'',notes:typeof r.notes==='string'?r.notes:''};
+}
+
 export async function POST(req:Request){try{const b=await body(req,2000000);const parsed=briefSchema.safeParse(b.brief),sel=selection.safeParse(b.knowledge);if(!parsed.success||!sel.success)throw new AppError('教学需求或知识清单格式有误。');const brief=parsed.data;if(!modelInfo().configured)throw new AppError('模型服务尚未配置，可先使用模板生成。',503);const s=(await session())!;
  const grammarInputs=new Set(allGrammarTerms(brief.knowledgeGroups?.grammar||''));
  let terms=[...new Set([...allGrammarTerms(brief.terms).filter(term=>!grammarInputs.has(term)||term.length<=80),...sel.data.map(choice=>choice.name)])];
@@ -37,18 +53,9 @@ export async function POST(req:Request){try{const b=await body(req,2000000);cons
  const revision=typeof b.revision==='string'?b.revision.slice(0,1000):'';
  const previous=b.previous?lessonSchema.safeParse(b.previous):null;
  if(b.previous&&!previous?.success)throw new AppError('待修订教案格式无效。');
- /**
-  * 输出结构示例：只展示本次开启的模块。
-  * 关掉的模块连示例都不给，否则模型会照着示例把它补回来。
-  */
+ /** 输出结构示例与 lessonSchema 键名一致；关闭的模块在示例里为空值，避免模型省略字段。 */
  const off=new Set(disabledTemplateModules(brief.templateConfig));
- const example={title:brief.topic,
-  ...(off.has('goals')?{}:{goals:[{id:'g1',domain:'认知领域',text:'可观察的学习成果',knowledgeIds:['输入中的知识id']},{id:'g2',domain:'技能领域',text:'可观察的交际产出',knowledgeIds:['输入中的知识id']},{id:'g3',domain:'情感领域',text:'学生愿意做的具体行为',knowledgeIds:['输入中的知识id']}],difficulties:[{text:'本课学生最可能卡住的具体问题'}]}),
-  activities:[{id:'a1',title:'环节标题',minutes:5,goalIds:['g1'],knowledgeIds:['输入中的知识id'],teacher:'具体教师指令与示范语言',students:'具体学生行动',grouping:'分组方式',output:'可观察成果',assessment:'评价方法'}],
-  materials:[{title:'角色卡A',content:'可直接发给学生的完整信息，与B卡不同'}],
-  ...(off.has('exercises')?{}:{exercises:[{question:'完整题目',answer:'参考答案或具体评分标准',goalIds:['g1'],knowledgeIds:['输入中的知识id']}]}),
-  ...(off.has('appendix')?{}:{board:'具体板书内容',homework:'基础与拓展任务'}),
-  notes:'待教师核验事项'};
+ const example=buildLessonGenerationExample(brief,off);
  const prompt=lessonPrompt(brief,knowledge,example,culturalEvidence);
  const messages:{role:string;content:string}[]=[{role:'system',content:prompt},{role:'user',content:JSON.stringify({brief:{...brief,terms:knowledge.map(k=>k.name).join('、')},knowledge:groundedBlocks(knowledge),previous:previous?.success?previous.data:null,revision})}];
  let candidate:ReturnType<typeof lessonSchema.parse>|null=null;
@@ -56,8 +63,12 @@ export async function POST(req:Request){try{const b=await body(req,2000000);cons
  const finish=()=>{if(!candidate)throw new AppError('模型未返回完整教案，请重试。现有草稿已保留。',502);const lesson={...candidate,notes:candidate.notes+(warnings.length?'\n\n【待审核问题】\n'+warnings.map(x=>'• '+x).join('\n'):'')};return json({lesson,knowledge,culturalEvidence,source:'model',createdAt:new Date().toISOString(),promptVersion:PROMPT_VERSION,model:modelInfo().name,reviewed:false,validationWarnings:warnings})};
  for(let attempt=0;attempt<2;attempt++){
  try{
- const raw=await modelRequest(messages),l=lessonSchema.safeParse(raw);
- if(!l.success)throw new AppError('模型输出结构不完整。',502);
+ const raw=coalesceLessonJson(await modelRequest(messages));
+ const l=lessonSchema.safeParse(raw);
+ if(!l.success){
+  console.log('[lesson] lessonSchema failed, first 500 chars:',JSON.stringify(raw).slice(0,500));
+  throw new AppError('模型输出结构不完整。',502);
+ }
  // 标题以教师输入的课程主题为准：模型加的任何后缀都在这里被覆盖掉
  candidate=withFixedTitle(l.data,brief.topic);
  warnings=[...new Set([...checkLesson(candidate,brief,knowledge).filter(x=>x.severity==='error').map(x=>x.text),...checkEvidenceBoundary(candidate,knowledge)])];
